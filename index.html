@@ -46,10 +46,11 @@ input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:4px;font
 <nav><div id="nv"></div></nav>
 <div id="sh"></div><div id="tt"></div>
 <script>
-const K='chamcong-v1',DEF={start:'08:00',end:'17:00',lunch:'01:00',std:'08:00',ot:'17:00',days:[1,2,3,4,5,6],lateCut:false,otMin:30,nStart:'20:00',nEnd:'08:00',nBreak:'01:00'};
+const K='chamcong-v1',DEF={start:'08:00',end:'17:00',lunch:'01:00',std:'08:00',ot:'17:00',days:[1,2,3,4,5,6],lateCut:false,otMin:30,nStart:'20:00',nEnd:'05:00',nBreak:'01:00'};
 let S={s:{...DEF},r:{},d:{},a:null,su:0,sd:0};
 try{const j=JSON.parse(localStorage.getItem(K)||'null');if(j){S.s={...DEF,...j.s};S.r=j.r||{};S.d=j.d||{};S.a=j.a||null;S.su=j.su||0;S.sd=j.sd||0}}catch(e){}
 const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+function fixS(){if((S.s.v||0)<2){S.s.nEnd='05:00';S.s.v=2;S.sd=1;S.su=Date.now()}}fixS();
 const $=s=>document.querySelector(s),p2=n=>String(n).padStart(2,'0');
 const key=d=>d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
 const vd=k=>k.slice(8)+'/'+k.slice(5,7),vdy=k=>vd(k)+'/'+k.slice(0,4);
@@ -88,7 +89,7 @@ async function sync(manual){
     if(!res.ok){if(res.auth){S.a=null;save();busy=false;ss='';render();toast(res.error);return}throw new Error(res.error)}
     ks.forEach(k=>{if(S.r[k]&&S.r[k].u===u[k])delete S.d[k]});if(S.su===su)S.sd=0;
     for(const k in res.records){const v=res.records[k],l=S.r[k];if(!l||(l.u||0)<v.u){S.r[k]=v;delete S.d[k]}}
-    if(res.settings&&res.settings.u>(S.su||0)){S.s={...DEF,...res.settings.data};S.su=res.settings.u}
+    if(res.settings&&res.settings.u>(S.su||0)){S.s={...DEF,...res.settings.data};S.su=res.settings.u;fixS()}
     ss='';save();if(manual)toast('Đã đồng bộ')
   }catch(e){ss='Chưa đồng bộ được, sẽ tự thử lại';if(manual)toast(ss)}
   busy=false;paint();
@@ -174,12 +175,12 @@ function vStat(){
   $('#v').innerHTML=`<h3>Thống kê</h3><label>Từ ngày<input type="date" id="sa" value="${TA}"></label><label>Đến ngày<input type="date" id="sb" value="${TB}"></label>
   <div id="sr"></div>`;
   const go=()=>{TA=$('#sa').value||TA;TB=$('#sb').value||TB;if(TA>TB){$('#sr').innerHTML='<p class="mute">Ngày bắt đầu phải trước ngày kết thúc.</p>';return}
-    const ks=range(),today=key(new Date());let n=0,nn=0,cg=0,cn=0,w=0,ot=0,otn=0,late=0,early=0,miss=0;
+    const ks=range(),today=key(new Date()),z=()=>({n:0,c:0,ot:0}),A={wd:z(),wn:z(),sd:z(),sn:z()};let w=0,late=0,early=0,miss=0;
     ks.forEach(k=>{const r=S.r[k],c=calc(r);if(c.late>0)late++;if(!r.out){if(k<today)miss++;return}
-      if(c.night){nn++;cn+=c.cong;otn+=c.ot}else{n++;ot+=c.ot}cg+=c.cong;w+=c.work;if(c.early>0)early++});
-    const ft=m=>Math.floor(m/60)+' giờ '+p2(m%60)+' phút';
-    $('#sr').innerHTML=`<div class="card"><h3>${vdy(TA)} → ${vdy(TB)}</h3>${S.a.name?row('Họ tên',esc(S.a.name)):''}${row('Ca ngày',n+' ngày')}${row('Ca đêm',nn+' ca')}${row('Tổng công',cg.toFixed(2)+' công')}${row('Trong đó ca đêm',cn.toFixed(2)+' công')}${row('Tổng giờ làm',ft(w))}${row('Tổng OT ca ngày',ft(ot))}${row('Tổng OT ca đêm',ft(otn))}
-    ${row('Đi muộn',late+' lần')}${row('Về sớm',early+' lần')}${row('Thiếu chấm công',miss+' ngày')}</div>
+      const g=A[(new Date(k+'T00:00:00').getDay()==0?'s':'w')+(c.night?'n':'d')];g.n++;g.c+=c.cong;g.ot+=c.ot;w+=c.work;if(c.early>0)early++});
+    const ft=m=>Math.floor(m/60)+' giờ '+p2(m%60)+' phút',cg=A.wd.c+A.wn.c+A.sd.c+A.sn.c,tot=A.wd.ot+A.wn.ot+A.sd.ot+A.sn.ot;
+    const blk=(h,a,b)=>`<div class="card"><h3>${h}</h3>${row('Ca ngày',a.n+' ngày · '+a.c.toFixed(2)+' công')}${row('OT ca ngày',ft(a.ot))}${row('Ca đêm',b.n+' ca · '+b.c.toFixed(2)+' công')}${row('OT ca đêm',ft(b.ot))}</div>`;
+    $('#sr').innerHTML=`<p class="mute">${vdy(TA)} → ${vdy(TB)}${S.a.name?' · '+esc(S.a.name):''}</p>${blk('Thứ 2 – Thứ 7',A.wd,A.wn)}${blk('Chủ nhật',A.sd,A.sn)}<div class="card"><h3>Tổng cộng</h3>${row('Tổng công',cg.toFixed(2)+' công')}${row('Tổng giờ làm',ft(w))}${row('Tổng OT',ft(tot))}${row('Đi muộn',late+' lần')}${row('Về sớm',early+' lần')}${row('Thiếu chấm công',miss+' ngày')}</div>
     <div class="btns"><button class="pri" id="xx">Xuất Excel</button><button id="xv">Xuất CSV</button></div>`;
     $('#xx').onclick=()=>exp('xlsx');$('#xv').onclick=()=>exp('csv')};
   $('#sa').onchange=go;$('#sb').onchange=go;go()}
@@ -190,18 +191,18 @@ async function dl(name,data){
     setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('Đã lưu '+name)}catch(e){toast('Không lưu được file')}}
 function exp(type){
   const ks=range();if(!ks.length){toast('Không có dữ liệu trong khoảng này');return}
-  const head=['Ngày','Ca','Giờ vào','Giờ ra','Giờ làm','Công','OT ngày','OT đêm','Ghi chú'];
-  const rows=ks.map(k=>{const r=S.r[k],c=calc(r);return[vd(k),c.night?'Đêm':'Ngày',t2(c.ei),c.eo!=null?t2(c.eo):'',c.work!=null?f(c.work):'',c.cong!=null?c.cong:'',!c.night&&c.ot!=null?f(c.ot):'',c.night&&c.ot!=null?f(c.ot):'',r.note||'']});
+  const head=['Ngày','Thứ','Ca','Giờ vào','Giờ ra','Giờ làm','Công','OT ngày','OT đêm','Ghi chú'];
+  const rows=ks.map(k=>{const r=S.r[k],c=calc(r);return[vd(k),['CN','T2','T3','T4','T5','T6','T7'][new Date(k+'T00:00:00').getDay()],c.night?'Đêm':'Ngày',t2(c.ei),c.eo!=null?t2(c.eo):'',c.work!=null?f(c.work):'',c.cong!=null?c.cong:'',!c.night&&c.ot!=null?f(c.ot):'',c.night&&c.ot!=null?f(c.ot):'',r.note||'']});
   const nm=TA.slice(0,7)==TB.slice(0,7)?TA.slice(5,7)+'_'+TA.slice(0,4):TA+'_'+TB,file='ChamCong_'+(S.a.name?S.a.name.replace(/[\\/:*?"<>|\s]+/g,'_')+'_':'')+nm;
   if(type=='csv'){const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
     dl(file+'.csv','\ufeff'+[head,...rows].map(r=>r.map(q).join(',')).join('\r\n'));return}
   if(!window.XLSX){toast('Chưa tải được thư viện Excel, hãy dùng CSV');return}
-  const ws=XLSX.utils.aoa_to_sheet([head,...rows]);ws['!cols']=[8,6,10,10,10,8,9,9,30].map(w=>({wch:w}));
+  const ws=XLSX.utils.aoa_to_sheet([head,...rows]);ws['!cols']=[8,6,6,10,10,10,8,9,9,30].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Chấm công');
   dl(file+'.xlsx',XLSX.write(wb,{type:'array',bookType:'xlsx'}))}
 
 function vSet(){
-  const s=S.s,tm=[['start','Giờ bắt đầu'],['end','Giờ kết thúc'],['lunch','Nghỉ trưa'],['std','Thời gian làm chuẩn'],['ot','Bắt đầu tính OT'],['nStart','Ca đêm: vào từ giờ này'],['nEnd','Ca đêm: giờ kết thúc'],['nBreak','Ca đêm: nghỉ giữa ca']];
+  const s=S.s,tm=[['start','Giờ bắt đầu'],['end','Giờ kết thúc'],['lunch','Nghỉ trưa'],['std','Thời gian làm chuẩn'],['ot','Bắt đầu tính OT'],['nStart','Ca đêm: vào từ giờ này'],['nEnd','Ca đêm: giờ kết thúc (quá giờ này tính OT)'],['nBreak','Ca đêm: nghỉ giữa ca']];
   const dn=[[1,'Thứ 2'],[2,'Thứ 3'],[3,'Thứ 4'],[4,'Thứ 5'],[5,'Thứ 6'],[6,'Thứ 7'],[0,'Chủ nhật']];
   $('#v').innerHTML=`<h3>Cài đặt</h3><div class="card" style="margin:0 0 12px"><b>${esc(S.a.name)}</b> <span class="mute">(${esc(S.a.user)})</span><div class="btns"><button id="sy">Đồng bộ ngay</button><button class="danger" id="lo">Đăng xuất</button></div></div>${tm.map(a=>`<label>${a[1]}<input type="time" id="c_${a[0]}" value="${s[a[0]]}"></label>`).join('')}
   <label>Chỉ tính OT khi làm quá (phút)<input type="number" min="0" step="5" id="c_om" value="${s.otMin}"></label>
