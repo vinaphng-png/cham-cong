@@ -68,7 +68,7 @@ function calc(r){
   if(r.out){let o=hm(r.out);if(n&&o<=i)o+=1440;const raw=Math.max(0,o-ot0);c.ot=raw>=s.otMin?raw:0;c.eo=c.ot?o:Math.min(o,ot0);
     c.work=Math.max(0,c.eo-c.ei-br);c.early=Math.max(0,en-o);c.cong=s.lateCut?Math.min(1,Math.round(c.work/std*100)/100):1}
   return c}
-function toast(t){const e=$('#tt');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2200)}
+function toast(t){const e=$('#tt');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),5000)}
 
 const SHEET='https://script.google.com/macros/s/AKfycbwroybGNxO3TEg_uqX9YP6P2ekxbvTwvbseZOipPurtAr7kJItwp4RQAgJg8LZt0kiFYA/exec';
 const activeKey=()=>{const n=new Date(),t=key(n),y=key(new Date(n.getFullYear(),n.getMonth(),n.getDate()-1)),r=S.r[y];
@@ -76,7 +76,8 @@ const activeKey=()=>{const n=new Date(),t=key(n),y=key(new Date(n.getFullYear(),
 function touch(k,e){S.r[k].u=Date.now();S.d[k]=e;save();sync()}
 let ss='',busy=false,am='in';
 const ssText=()=>ss||(Object.keys(S.d).length?'Chờ đồng bộ '+Object.keys(S.d).length+' thay đổi':'Đã đồng bộ');
-const post=async o=>(await fetch(SHEET,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(o)})).json();
+const post=async o=>{const r=await fetch(SHEET,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(o)});const x=await r.text();
+  try{return JSON.parse(x)}catch(e){throw new Error('Máy chủ trả về không đúng định dạng: '+x.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').slice(0,90))}};
 const paint=()=>{const e=$('#ss');if(e)e.textContent=ssText()};
 async function sync(manual){
   if(!S.a||busy)return;busy=true;ss='Đang đồng bộ...';paint();
@@ -115,7 +116,7 @@ function vAuth(){
       Object.keys(S.r).forEach(k=>{const r=S.r[k];if(r.in){if(!r.u)r.u=Date.now();S.d[k]='Nhập từ máy'}});
       if(g){S.su=Date.now();S.sd=1}
       save();tab='t';render();sync()
-    }catch(e){toast('Không kết nối được, kiểm tra mạng');b.disabled=false}}}
+    }catch(e){toast('Lỗi: '+(e.message||'không kết nối được'));b.disabled=false}}}
 function nav(){$('#nv').innerHTML=[['t','Chấm công'],['h','Lịch sử'],['s','Thống kê'],['c','Cài đặt']].map(a=>`<button data-t="${a[0]}" class="${tab==a[0]?'on':''}">${a[1]}</button>`).join('');
   document.querySelectorAll('#nv button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()})}
 
