@@ -35,6 +35,9 @@ input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:4px;font
 .days{display:grid;grid-template-columns:1fr 1fr}
 .pri{background:var(--acc);color:#fff;font-weight:600}.danger{color:var(--out)}
 .btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.btns button{flex:1}
+.hm{display:flex;gap:8px;align-items:center}
+.hm input{width:auto;flex:1;text-align:center}
+.hm span{color:var(--mute);font-weight:700}
 #sh{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:5}
 #sh.on{display:flex}
 .pan{background:var(--card);width:100%;max-width:480px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:20px 16px}
@@ -149,19 +152,30 @@ function vHist(){
 function sum(r){const c=calc(r),s=S.s;if(!c)return'<p class="mute">Nhập giờ vào để xem kết quả.</p>';
   
   return row('Giờ vào tính',t2(c.ei))+row('Giờ ra tính',c.eo!=null?t2(c.eo):'--')+row('Loại ca',c.night?'Ca đêm':'Ca ngày')+row('Giờ làm chuẩn',f(c.std))+row('Nghỉ giữa ca',c.night?s.nBreak:s.lunch)+row('Thời gian làm',c.work!=null?f(c.work):'--')+row('Công',c.cong!=null?c.cong.toFixed(2):'--')+row('OT',c.ot!=null?f(c.ot):'--')+row('Đi muộn',f(c.late))+row('Về sớm',c.early!=null?f(c.early):'--')}
+
+function hmInput(id,val){
+  const h=val?+val.slice(0,2):'',m=val?+val.slice(3,5):'';
+  return `<div class="hm"><input type="number" inputmode="numeric" min="0" max="23" placeholder="Giờ" id="${id}_h" value="${h}"><span>:</span><input type="number" inputmode="numeric" min="0" max="59" placeholder="Phút" id="${id}_m" value="${m}"></div>`;
+}
+function readHM(id){
+  const hE=$('#'+id+'_h'),mE=$('#'+id+'_m');if(!hE||!mE)return null;
+  const h=hE.value.trim(),m=mE.value.trim();if(h==='')return null;
+  let hi=Math.max(0,Math.min(23,parseInt(h)||0)),mi=Math.max(0,Math.min(59,m===''?0:parseInt(m)||0));
+  return p2(hi)+':'+p2(mi)+':00';
+}
 function sheet(k){
   const r=S.r[k]||{},sh=$('#sh');
   sh.innerHTML=`<div class="pan"><h3>${vdy(k)}</h3>
-  <label>Chấm vào<input type="time" step="1" id="ei" value="${r.in||''}"></label>
-  <label>Chấm ra<input type="time" step="1" id="eo" value="${r.out||''}"></label>
+  <label>Chấm vào${hmInput('ei',r.in)}</label>
+  <label>Chấm ra${hmInput('eo',r.out)}</label>
   <div id="sm">${sum(r)}</div>
   <label>Lý do sửa<input id="er" value="${esc(r.reason||'')}" placeholder="Quên chấm công"></label>
   <label>Ghi chú<textarea id="en" rows="2" placeholder="Đi công tác, làm thứ 7...">${esc(r.note||'')}</textarea></label>
   <div class="btns"><button class="pri" id="xs">Lưu</button><button id="xc">Đóng</button>${S.r[k]&&S.r[k].in?'<button class="danger" id="xd">Xoá ngày</button>':''}</div></div>`;
   sh.classList.add('on');
-  const cur=()=>({in:$('#ei').value||null,out:$('#eo').value||null});
+  const cur=()=>({in:readHM('ei'),out:readHM('eo')});
   const upd=()=>{$('#sm').innerHTML=sum(cur())};
-  $('#ei').oninput=upd;$('#eo').oninput=upd;
+  ['ei_h','ei_m','eo_h','eo_m'].forEach(id=>{const e=$('#'+id);if(e)e.oninput=upd});
   $('#xc').onclick=()=>sh.classList.remove('on');
   sh.onclick=e=>{if(e.target===sh)sh.classList.remove('on')};
   $('#xs').onclick=()=>{const v=cur();
